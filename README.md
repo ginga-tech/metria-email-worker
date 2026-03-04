@@ -94,7 +94,7 @@ Optional:
    - `docker compose up -d postgres rabbitmq`
 3. Restore/build:
    - `dotnet restore`
-   - `dotnet build metria-worker.slnx`
+   - `dotnet build metria-email-worker.slnx`
 4. Run worker:
    - `dotnet run --project src/Metria.EmailWorker.Processor`
 
