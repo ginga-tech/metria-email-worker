@@ -34,7 +34,7 @@ public sealed class ProcessEmailDigestUseCase
     {
         try
         {
-            _ = _validator.ValidateAndMap(message);
+            _validator.Validate(message);
         }
         catch (DomainValidationException ex)
         {

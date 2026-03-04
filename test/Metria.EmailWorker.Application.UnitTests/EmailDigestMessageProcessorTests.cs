@@ -1,4 +1,3 @@
-using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,12 +13,12 @@ using Metria.EmailWorker.Infrastructure.Messaging;
 using Metria.EmailWorker.Infrastructure.Observability;
 using Metria.EmailWorker.Processor.HostedServices;
 
-namespace Metria.EmailWorker.Infrastructure.IntegrationTests;
+namespace Metria.EmailWorker.Application.UnitTests;
 
-public sealed class WorkerBehaviorIntegrationTests
+public sealed class EmailDigestMessageProcessorTests
 {
     [Fact]
-    public async Task PermanentFailure_ShouldRouteToDlq()
+    public async Task ProcessAsync_WhenPermanentFailure_ShouldRouteToDlq()
     {
         // Arrange
         var repository = new Mock<IEmailDispatchRepository>();
@@ -35,11 +34,11 @@ public sealed class WorkerBehaviorIntegrationTests
             .Throws(new PermanentProcessingException("template not supported"));
 
         var serviceProvider = BuildServiceProvider(repository, sender, renderer, clock);
-        var hostedService = CreateHostedService(serviceProvider, metrics.Object);
+        var processor = CreateProcessor(serviceProvider, metrics.Object);
         var deliveryContext = CreateDeliveryContext();
 
         // Act
-        var disposition = await InvokeHandlerAsync(hostedService, deliveryContext);
+        var disposition = await processor.ProcessAsync(deliveryContext, CancellationToken.None);
 
         // Assert
         disposition.Should().Be(RabbitMqMessageDisposition.NackToDlq);
@@ -47,7 +46,7 @@ public sealed class WorkerBehaviorIntegrationTests
     }
 
     [Fact]
-    public async Task TransientFailure_ShouldRetryThenRouteToDlq()
+    public async Task ProcessAsync_WhenTransientFailure_ShouldRetryThenRouteToDlq()
     {
         // Arrange
         var repository = new Mock<IEmailDispatchRepository>();
@@ -67,11 +66,11 @@ public sealed class WorkerBehaviorIntegrationTests
             .ThrowsAsync(new TransientProcessingException("smtp timeout"));
 
         var serviceProvider = BuildServiceProvider(repository, sender, renderer, clock);
-        var hostedService = CreateHostedService(serviceProvider, metrics.Object, maxAttempts: 3);
+        var processor = CreateProcessor(serviceProvider, metrics.Object, maxAttempts: 3);
         var deliveryContext = CreateDeliveryContext();
 
         // Act
-        var disposition = await InvokeHandlerAsync(hostedService, deliveryContext);
+        var disposition = await processor.ProcessAsync(deliveryContext, CancellationToken.None);
 
         // Assert
         disposition.Should().Be(RabbitMqMessageDisposition.NackToDlq);
@@ -115,24 +114,12 @@ public sealed class WorkerBehaviorIntegrationTests
         return services.BuildServiceProvider();
     }
 
-    private static EmailDigestConsumerHostedService CreateHostedService(
+    private static EmailDigestMessageProcessor CreateProcessor(
         ServiceProvider serviceProvider,
         IEmailWorkerMetrics metrics,
         int maxAttempts = 3)
     {
-        var consumer = new RabbitMqConsumer(
-            Options.Create(new RabbitMqOptions
-            {
-                Host = "localhost",
-                Port = 5672,
-                User = "guest",
-                Password = "guest",
-                QueueEmailDigest = "email.digest"
-            }),
-            NullLogger<RabbitMqConsumer>.Instance);
-
-        return new EmailDigestConsumerHostedService(
-            consumer,
+        return new EmailDigestMessageProcessor(
             new RabbitMqMessageDeserializer(),
             serviceProvider.GetRequiredService<IServiceScopeFactory>(),
             Options.Create(new RetryOptions
@@ -142,7 +129,7 @@ public sealed class WorkerBehaviorIntegrationTests
                 MaxDelaySeconds = 2
             }),
             metrics,
-            NullLogger<EmailDigestConsumerHostedService>.Instance);
+            NullLogger<EmailDigestMessageProcessor>.Instance);
     }
 
     private static RabbitMqDeliveryContext CreateDeliveryContext()
@@ -166,20 +153,4 @@ public sealed class WorkerBehaviorIntegrationTests
 
         return new RabbitMqDeliveryContext(1, System.Text.Encoding.UTF8.GetBytes(json), false, "email.digest");
     }
-
-    private static async Task<RabbitMqMessageDisposition> InvokeHandlerAsync(
-        EmailDigestConsumerHostedService hostedService,
-        RabbitMqDeliveryContext deliveryContext)
-    {
-        var method = typeof(EmailDigestConsumerHostedService)
-            .GetMethod("HandleDeliveryAsync", BindingFlags.Instance | BindingFlags.NonPublic)
-            ?? throw new InvalidOperationException("HandleDeliveryAsync was not found.");
-
-        var task = method.Invoke(hostedService, new object[] { deliveryContext, CancellationToken.None })
-                   as Task<RabbitMqMessageDisposition>
-                   ?? throw new InvalidOperationException("Unable to invoke HandleDeliveryAsync.");
-
-        return await task;
-    }
 }
-

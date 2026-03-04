@@ -1,27 +1,41 @@
 using Metria.EmailWorker.Application.Contracts.Messages.V1;
-using Metria.EmailWorker.Domain.Entities;
+using Metria.EmailWorker.Domain.Exceptions;
 using Metria.EmailWorker.Domain.ValueObjects;
 
 namespace Metria.EmailWorker.Application.Validation;
 
 public sealed class EmailDigestMessageValidator
 {
-    public EmailDigest ValidateAndMap(EmailDigestMessageV1 message)
+    public void Validate(EmailDigestMessageV1 message)
     {
-        var startUtc = EnsureUtc(message.PeriodStartUtc);
-        var endUtc = EnsureUtc(message.PeriodEndUtc);
+        if (message.MessageId == Guid.Empty)
+        {
+            throw new DomainValidationException("MessageId must not be empty.");
+        }
 
-        return new EmailDigest(
-            message.MessageId,
-            message.CorrelationId,
-            message.UserId,
-            new EmailAddress(message.Email),
-            message.FirstName,
-            message.Locale,
-            message.TimeZone,
-            new Period(startUtc, endUtc),
-            new TemplateKey(message.TemplateKey),
-            message.Metadata);
+        if (message.CorrelationId == Guid.Empty)
+        {
+            throw new DomainValidationException("CorrelationId must not be empty.");
+        }
+
+        if (message.UserId == Guid.Empty)
+        {
+            throw new DomainValidationException("UserId must not be empty.");
+        }
+
+        if (string.IsNullOrWhiteSpace(message.Locale))
+        {
+            throw new DomainValidationException("Locale must be provided.");
+        }
+
+        if (string.IsNullOrWhiteSpace(message.TimeZone))
+        {
+            throw new DomainValidationException("TimeZone must be provided.");
+        }
+
+        _ = new EmailAddress(message.Email);
+        _ = new Period(EnsureUtc(message.PeriodStartUtc), EnsureUtc(message.PeriodEndUtc));
+        _ = new TemplateKey(message.TemplateKey);
     }
 
     private static DateTime EnsureUtc(DateTime value) =>

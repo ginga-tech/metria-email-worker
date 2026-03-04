@@ -42,7 +42,7 @@ public sealed class RabbitMqConsumer : IAsyncDisposable
         _channel = _connection.CreateModel();
         _channel.BasicQos(0, prefetchCount: 10, global: false);
 
-        RabbitMqTopologyInitializer.EnsureTopology(_channel, _options.QueueEmailDigest);
+        EnsureTopology(_channel, _options.QueueEmailDigest);
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.Received += async (_, ea) =>
@@ -111,5 +111,28 @@ public sealed class RabbitMqConsumer : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await StopAsync();
+    }
+
+    private static void EnsureTopology(IModel channel, string queueName)
+    {
+        var dlxExchange = $"{queueName}.dlx";
+        var dlqName = $"{queueName}.dlq";
+
+        channel.ExchangeDeclare(dlxExchange, ExchangeType.Direct, durable: true, autoDelete: false);
+        channel.QueueDeclare(dlqName, durable: true, exclusive: false, autoDelete: false);
+        channel.QueueBind(dlqName, dlxExchange, routingKey: queueName);
+
+        var args = new Dictionary<string, object?>
+        {
+            ["x-dead-letter-exchange"] = dlxExchange,
+            ["x-dead-letter-routing-key"] = queueName
+        };
+
+        channel.QueueDeclare(
+            queue: queueName,
+            durable: true,
+            exclusive: false,
+            autoDelete: false,
+            arguments: args);
     }
 }

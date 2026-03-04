@@ -22,5 +22,6 @@
     <ProjectReference Include="..\..\src\Metria.EmailWorker.Application\Metria.EmailWorker.Application.csproj" />
     <ProjectReference Include="..\..\src\Metria.EmailWorker.Domain\Metria.EmailWorker.Domain.csproj" />
     <ProjectReference Include="..\..\src\Metria.EmailWorker.Infrastructure\Metria.EmailWorker.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Metria.EmailWorker.Processor\Metria.EmailWorker.Processor.csproj" />
   </ItemGroup>
 </Project>

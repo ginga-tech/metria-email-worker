@@ -1,9 +1,8 @@
 using System.Text.Json.Serialization;
-using Metria.EmailWorker.Application.Contracts.Messages;
 
 namespace Metria.EmailWorker.Application.Contracts.Messages.V1;
 
-public sealed class EmailDigestMessageV1 : IEmailDigestMessage
+public sealed class EmailDigestMessageV1
 {
     [JsonPropertyName("messageId")]
     public Guid MessageId { get; init; }

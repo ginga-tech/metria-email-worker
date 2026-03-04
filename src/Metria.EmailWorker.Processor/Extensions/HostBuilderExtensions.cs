@@ -9,6 +9,7 @@ public static class HostBuilderExtensions
     public static IServiceCollection AddEmailWorker(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddEmailWorkerInfrastructure(configuration);
+        services.AddSingleton<EmailDigestMessageProcessor>();
         services.AddHostedService<EmailDigestConsumerHostedService>();
         services.AddHealthChecks()
             .AddCheck<RabbitMqHealthCheck>("rabbitmq")

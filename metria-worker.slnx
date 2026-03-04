@@ -12,14 +12,14 @@
     <File Path="09-Local-Execution.md" />
     <File Path="10-Deployment-Railway.md" />
     <File Path="11-ADR-Decisions.md" />
+    <File Path="12-Development-Standards.md" />
     <File Path="AI-Guidelines.md" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Metria.EmailWorker.Application/Metria.EmailWorker.Application.csproj" />
     <Project Path="src/Metria.EmailWorker.Domain/Metria.EmailWorker.Domain.csproj" />
     <Project Path="src/Metria.EmailWorker.Infrastructure/Metria.EmailWorker.Infrastructure.csproj" />
-    <Project Path="src/Metria.EmailWorker.Worker/Metria.EmailWorker.Worker.csproj" />
-    <Project Path="src/Metria.Worker/Metria.Worker.csproj" />
+    <Project Path="src/Metria.EmailWorker.Processor/Metria.EmailWorker.Processor.csproj" />
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/Metria.EmailWorker.Application.UnitTests/Metria.EmailWorker.Application.UnitTests.csproj" />

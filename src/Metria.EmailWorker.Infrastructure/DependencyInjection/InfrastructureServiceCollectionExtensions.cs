@@ -93,10 +93,10 @@ public static class InfrastructureServiceCollectionExtensions
                 options.TimeZoneDefault = configuration["EMAIL_DIGEST_TIMEZONE_DEFAULT"] ?? string.Empty;
             })
             .Validate(
-                o => !string.IsNullOrWhiteSpace(o.Cron) && !string.IsNullOrWhiteSpace(o.TimeZoneDefault),
-                "Scheduler env variables must be configured even when consumer-only.")
+                o => !o.Enabled || (!string.IsNullOrWhiteSpace(o.Cron) && !string.IsNullOrWhiteSpace(o.TimeZoneDefault)),
+                "Scheduler env variables are invalid when EMAIL_DIGEST_ENABLED=true.")
             .Validate(
-                o => IsValidTimeZone(o.TimeZoneDefault),
+                o => !o.Enabled || IsValidTimeZone(o.TimeZoneDefault),
                 "EMAIL_DIGEST_TIMEZONE_DEFAULT is invalid.")
             .ValidateOnStart();
 
@@ -104,22 +104,13 @@ public static class InfrastructureServiceCollectionExtensions
                                ?? configuration["ConnectionStrings__EmailWorkerDb"]
                                ?? string.Empty;
 
-        services
-            .AddOptions<DatabaseOptions>()
-            .Configure(options => options.ConnectionString = connectionString)
-            .Validate(
-                o => !string.IsNullOrWhiteSpace(o.ConnectionString),
-                "ConnectionStrings__EmailWorkerDb must be configured.")
-            .ValidateOnStart();
-
-        services.AddDbContext<EmailWorkerDbContext>((serviceProvider, optionsBuilder) =>
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
-            var databaseOptions = serviceProvider
-                .GetRequiredService<Microsoft.Extensions.Options.IOptions<DatabaseOptions>>()
-                .Value;
+            throw new InvalidOperationException("ConnectionStrings__EmailWorkerDb must be configured.");
+        }
 
-            optionsBuilder.UseNpgsql(databaseOptions.ConnectionString);
-        });
+        services.AddDbContext<EmailWorkerDbContext>(optionsBuilder =>
+            optionsBuilder.UseNpgsql(connectionString));
 
         services.AddScoped<IEmailDispatchRepository, EmailDispatchRepository>();
         services.AddScoped<ProcessEmailDigestUseCase>();
